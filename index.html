@@ -35,7 +35,7 @@
   .perfil-info p{color:var(--gris); font-size:.85rem;}
   .badge{display:inline-block; background:#e0e7ff; color:var(--azul-osc); border-radius:999px; padding:2px 10px; font-size:.75rem; font-weight:700;}
   .fila{display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
-  .stat-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; margin:12px 0;}
+  .stat-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px; margin:12px 0;}
   .stat{background:var(--fondo); border-radius:10px; padding:12px; text-align:center;}
   .stat .num{font-size:1.5rem; font-weight:800; color:var(--azul);}
   .stat .lbl{font-size:.75rem; color:var(--gris);}
@@ -64,6 +64,7 @@
   .fin-sub{text-align:center; color:var(--gris); margin-bottom:16px;}
   .oculto{display:none !important;}
   .pie{color:var(--gris); font-size:.75rem; text-align:center; margin:20px 0;}
+  .nube{font-size:.8rem; color:var(--teal); margin-top:8px;}
   @media (max-width:480px){ header h1{font-size:1.1rem;} .btn{width:100%;} .fila .btn{width:auto; flex:1;} }
 </style>
 </head>
@@ -72,7 +73,7 @@
   <header>
     <div>
       <h1>🇬🇧 Inglés en familia</h1>
-      <div class="sub">15–30 minutos al día · constancia ante todo</div>
+      <div class="sub">Sesiones ilimitadas · constancia ante todo</div>
     </div>
     <div id="cab-usuario" class="oculto">
       <button class="btn btn-suave" onclick="volverPerfiles()">Cambiar perfil</button>
@@ -95,7 +96,7 @@
         <p id="resumen-marina">Sin sesiones todavía</p>
       </div>
     </div>
-    <p class="pie">Cada perfil guarda su progreso en este navegador. Usa «Exportar» para generar tu fichero progreso_*.json.</p>
+    <p class="pie">Al entrar en tu perfil, tu progreso guardado en GitHub se carga automáticamente.</p>
   </div>
 
   <!-- ============ PANTALLA: PANEL DEL USUARIO ============ -->
@@ -113,17 +114,22 @@
       </div>
       <div class="stat-grid">
         <div class="stat"><div class="num" id="st-racha">0</div><div class="lbl">🔥 días de racha</div></div>
-        <div class="stat"><div class="num" id="st-sesiones">0</div><div class="lbl">sesiones hechas</div></div>
+        <div class="stat"><div class="num" id="st-hoy">0</div><div class="lbl">sesiones hoy</div></div>
+        <div class="stat"><div class="num" id="st-sesiones">0</div><div class="lbl">sesiones totales</div></div>
         <div class="stat"><div class="num" id="st-acierto">—</div><div class="lbl">% acierto global</div></div>
       </div>
       <div id="panel-cats"></div>
       <div class="fila" style="margin-top:16px;">
-        <button class="btn btn-primario" onclick="empezarSesion()">▶ Empezar sesión de hoy</button>
-        <button class="btn btn-secundario" onclick="exportarProgreso()">⬇ Exportar progreso</button>
-        <button class="btn btn-suave" onclick="document.getElementById('inp-importar').click()">⬆ Importar</button>
+        <button class="btn btn-primario" onclick="empezarSesion()">▶ Nueva sesión</button>
+        <button class="btn btn-secundario" onclick="enviarProgreso()">📤 Enviar progreso</button>
+      </div>
+      <div class="fila" style="margin-top:10px;">
+        <button class="btn btn-suave" onclick="exportarProgreso()">⬇ Copia de seguridad</button>
+        <button class="btn btn-suave" onclick="document.getElementById('inp-importar').click()">⬆ Restaurar copia</button>
         <input type="file" id="inp-importar" accept=".json,application/json" class="oculto" onchange="importarProgreso(this)">
       </div>
       <p id="panel-aviso" class="pie" style="text-align:left;margin:10px 0 0;"></p>
+      <p id="panel-nube" class="nube"></p>
     </div>
   </div>
 
@@ -160,13 +166,13 @@
       <div id="fin-cats"></div>
       <div class="fila" style="margin-top:16px; justify-content:center;">
         <button class="btn btn-primario" onclick="empezarSesion()">Otra sesión</button>
-        <button class="btn btn-secundario" onclick="exportarProgreso()">⬇ Exportar progreso</button>
+        <button class="btn btn-secundario" onclick="enviarProgreso()">📤 Enviar progreso</button>
         <button class="btn btn-suave" onclick="irPanel()">Volver al panel</button>
       </div>
     </div>
   </div>
 
-  <p class="pie">Inglés en familia · v1 · Jorge &amp; Marina · MCER B1/B2</p>
+  <p class="pie">Inglés en familia · v2 · Jorge &amp; Marina · MCER B1/B2</p>
 </div>
 
 <script>
@@ -183,8 +189,11 @@
      sesiones: [{fecha, nivel, aciertos, total, duracionSeg, porCategoria:{cat:{aciertos,total}}}],
      estadisticas: { idPregunta: {intentos, aciertos, ultima:"YYYY-MM-DD"} }
    }
+   El mismo formato se usa en progresos/jorge.json y progresos/marina.json
+   del repositorio, que la app carga y fusiona automáticamente al entrar.
    ===================================================================== */
 
+var REPO = "JorgeteR/ingles-familia";
 var CATS = ["vocabulario","gramatica","comprension","traduccion"];
 var CAT_NOMBRE = {vocabulario:"Vocabulario", gramatica:"Gramática", comprension:"Comprensión", traduccion:"Traducción"};
 var COMPOSICION = {vocabulario:6, gramatica:5, comprension:5, traduccion:4}; // 20 preguntas
@@ -195,16 +204,25 @@ var PASAJES = {
 "Hi Marta!\nHow are you? I'm writing to tell you about my holiday plans. Next month I'm travelling to Barcelona with my brother Tom. We're staying in a small hotel near the beach for five nights. We found it on the internet and it was quite cheap because we booked early.\nI want to visit the Sagrada Familia and the Gothic Quarter, but Tom prefers the beach. He says he needs to relax because he has worked very hard this year. We both love Spanish food, so we're planning to try lots of tapas!\nCould you recommend some good restaurants? You know the city much better than me because you lived there for three years.\nSee you soon,\nSarah"},
   "pB1b": {titulo:"Greenpark Sports Centre — Special offer", texto:
 "Special offer for new members! Join before 31st August and pay only £25 a month for the first year (normal price £40).\nThe centre opens every day from 6:30 a.m. to 10 p.m., except on Sundays, when it closes at 6 p.m. We have a swimming pool, two gyms and tennis courts.\nFree classes for members: yoga on Mondays and Pilates on Thursdays. Under-16s must come with an adult.\nTo join, bring a photo and an ID card to reception, or complete the form on our website."},
+  "pB1c": {titulo:"School trip to the Science Museum", texto:
+"Dear families,\nNext Friday 22nd May, class 6B will visit the Science Museum in the city centre. The bus will leave the school at 9:15, so students must arrive by 9 o'clock. We will return at about 4:30 p.m.\nThe visit costs 12 euros, which includes the guided tour and a planetarium show. Please give the money to the class teacher before Wednesday.\nStudents should bring a packed lunch and a bottle of water. They don't need money for the gift shop, but they can bring some if they want. If it rains, we will eat inside the museum café instead of the park.\nMrs. Evans"},
+  "pB1d": {titulo:"My unusual job", texto:
+"My name is Paul and I have an unusual job: I walk dogs! Five years ago I worked in an office, but I hated sitting inside all day. One morning, my neighbour asked me to walk her dog because she was ill, and I loved it.\nNow I walk between ten and fifteen dogs every day, in two groups. I start early, at 7:30, because some owners leave for work at 8. The best part of my job is being outside in all seasons — yes, even in winter! The most difficult part is the rain: wet dogs are not fun.\nI earn less money than before, but I am much happier. Next year I want to open a small hotel for dogs."},
+  "pB1e": {titulo:"City Museum — Visitor information", texto:
+"Welcome to the City Museum. The museum is open from Tuesday to Sunday, 10:00–18:00. It is closed on Mondays and on public holidays.\nTickets cost 8 euros for adults and 4 euros for students; children under 10 enter free. On the first Sunday of every month, entrance is free for everyone.\nPhotography is allowed in all rooms except the Egyptian Gallery. The museum café on the top floor serves lunch from 12:00 to 15:00, and there is a lift for visitors who cannot use the stairs.\nGuided tours in English and Spanish start at 11:00 and 16:00 at the main entrance. Please do not touch the objects."},
   "pB2a": {titulo:"Working from home: dream or trap?", texto:
 "When companies first allowed employees to work from home, many people celebrated the end of long commutes and rigid schedules. Five years later, the picture is more complicated. According to a recent survey of 2,000 office workers, 64% say they are more productive at home, yet almost half admit they work longer hours than they did in the office.\nPsychologists point out that the boundary between work and private life tends to disappear when your kitchen table becomes your desk. 'People answer emails at midnight simply because the laptop is there,' explains Dr. Helen Carter, who studies workplace behaviour. She recommends creating clear routines: a fixed finishing time, a separate working space, and regular breaks away from the screen.\nCompanies are also divided. Some have closed offices to save money, while others insist that creativity suffers without face-to-face contact and have asked staff to return at least three days a week."},
   "pB2b": {titulo:"Volunteers wanted: city river clean-up", texto:
-"The Riverside Association is looking for volunteers for its annual clean-up of the River Avon, which will take place on Saturday 12th September. Last year more than 300 people took part and collected almost two tonnes of rubbish, most of it plastic.\nNo experience is necessary, but volunteers must be over 14 and should wear old clothes and strong boots. Gloves and bags will be provided by the organisers, and there will be free sandwiches and drinks for everyone who registers before 5th September. Those who sign up later are still welcome, but food cannot be guaranteed.\nThe association reminds participants that the event will be cancelled if there is heavy rain, as the river banks become dangerous. Any decision will be announced on the website by 8 a.m. on the day."}
+"The Riverside Association is looking for volunteers for its annual clean-up of the River Avon, which will take place on Saturday 12th September. Last year more than 300 people took part and collected almost two tonnes of rubbish, most of it plastic.\nNo experience is necessary, but volunteers must be over 14 and should wear old clothes and strong boots. Gloves and bags will be provided by the organisers, and there will be free sandwiches and drinks for everyone who registers before 5th September. Those who sign up later are still welcome, but food cannot be guaranteed.\nThe association reminds participants that the event will be cancelled if there is heavy rain, as the river banks become dangerous. Any decision will be announced on the website by 8 a.m. on the day."},
+  "pB2c": {titulo:"The teenager who cleaned a river", texto:
+"When Daniel Rueda was fourteen, he started spending his Saturday mornings picking up litter along the small river behind his school in Valencia. At first, his classmates laughed at him. 'They thought I was wasting my time,' he remembers.\nBut Daniel photographed everything he collected and posted the pictures online, carefully listing the brands he found most often. Within six months, his account had thousands of followers, and a local packaging company — whose logo appeared in too many of his photos — contacted him. Instead of asking him to stop, they offered to sponsor monthly clean-ups and promised to redesign their bottles with recycled plastic.\nDaniel, now seventeen, says the lesson is simple: 'Companies listen when their name is involved. One person with a camera can start a conversation that a thousand complaints cannot.'"},
+  "pB2d": {titulo:"Should schools ban smartphones?", texto:
+"Few debates divide teachers as much as this one. Supporters of a ban point to studies showing that students concentrate better and socialise more when phones are locked away during the day. One secondary school in Manchester reported that exam results improved noticeably two years after introducing strict rules.\nOpponents argue that banning phones misses the point: children need to learn to use technology responsibly, and pretending it doesn't exist prepares them for nothing. They also note that phones can support learning — from translation apps to quick research.\nPerhaps the most sensible position lies in the middle: clear limits during lessons, combined with honest education about attention, privacy and social media. As one head teacher put it, 'The phone is not the enemy. The absence of rules is.'"},
+  "pB2e": {titulo:"Job advert: International sales assistant", texto:
+"GreenLeaf Ltd, a growing organic food company, is seeking a sales assistant for its export department.\nThe successful candidate will speak fluent English and at least one other European language, preferably German. Duties include preparing price lists, answering customer enquiries and occasionally travelling to trade fairs — around four trips a year, mostly within Europe.\nExperience in the food sector is an advantage but not essential, as full training will be provided. We offer a competitive salary, a company laptop and the possibility of working from home two days a week after the first three months.\nApplications, including a CV and a short cover letter in English, should be sent to jobs@greenleaf.example before 30th June. Interviews will take place online during the first week of July."}
 };
 
-/* ===== BANCO DE PREGUNTAS =====
-   tipo "mc": opciones[], correcta = índice de la opción correcta
-   tipo "texto": respuestas[] = respuestas aceptadas (se normalizan al comparar)
-*/
+/* ===== BANCO DE PREGUNTAS ===== */
 var BANCO = [
 /* ---------- B1 · VOCABULARIO ---------- */
 {id:"b1-v-01", nivel:"B1", cat:"vocabulario", tipo:"mc", q:"¿Qué significa 'improve'?", opciones:["mejorar","empeorar","imprimir","importar"], correcta:0, exp:"'Improve' = mejorar. Ej.: I want to improve my English."},
@@ -221,6 +239,27 @@ var BANCO = [
 {id:"b1-v-12", nivel:"B1", cat:"vocabulario", tipo:"mc", q:"Si no apruebas un examen, en inglés dices: I ___ the exam.", opciones:["suspended","failed","lost","missed"], correcta:1, exp:"Suspender un examen = to fail an exam. 'Suspend' no se usa así."},
 {id:"b1-v-13", nivel:"B1", cat:"vocabulario", tipo:"mc", q:"¿Qué significa 'success'?", opciones:["suceso","éxito","salida","acceso"], correcta:1, exp:"Falso amigo: 'success' = éxito. Suceso = event. Salida = exit."},
 {id:"b1-v-14", nivel:"B1", cat:"vocabulario", tipo:"mc", q:"¿Cómo se dice 'actualmente' en inglés?", opciones:["actually","currently","eventually","lately"], correcta:1, exp:"Actualmente = currently / at the moment. 'Actually' = en realidad."},
+{id:"b1-v-15", nivel:"B1", cat:"vocabulario", tipo:"mc", q:"¿Qué significa 'surname'?", opciones:["apodo","apellido","nombre de pila","firma"], correcta:1, exp:"'Surname' (o last name) = apellido. Nombre de pila = first name."},
+{id:"b1-v-16", nivel:"B1", cat:"vocabulario", tipo:"mc", q:"How do you ___ your surname? — B-R-O-W-N.", opciones:["spell","write","speak","mean"], correcta:0, exp:"'Spell' = deletrear. How do you spell it?"},
+{id:"b1-v-17", nivel:"B1", cat:"vocabulario", tipo:"mc", q:"¿Qué significa 'crowded'?", opciones:["nublado","lleno de gente","ruidoso","cerrado"], correcta:1, exp:"'Crowded' = abarrotado, lleno de gente. Crowd = multitud."},
+{id:"b1-v-18", nivel:"B1", cat:"vocabulario", tipo:"mc", q:"¿Qué significa 'to wake up'?", opciones:["levantarse","despertarse","acostarse","vestirse"], correcta:1, exp:"'Wake up' = despertarse. Levantarse = get up."},
+{id:"b1-v-19", nivel:"B1", cat:"vocabulario", tipo:"mc", q:"The meal you eat in the middle of the day is called ___.", opciones:["breakfast","lunch","dinner","snack"], correcta:1, exp:"Lunch = comida del mediodía. Dinner = cena."},
+{id:"b1-v-20", nivel:"B1", cat:"vocabulario", tipo:"mc", q:"¿Qué significa 'exhausted'?", opciones:["emocionado","agotado","expulsado","estresado"], correcta:1, exp:"'Exhausted' = agotado, muy cansado (más fuerte que 'tired')."},
+{id:"b1-v-21", nivel:"B1", cat:"vocabulario", tipo:"mc", q:"I'd like to ___ a table for two, please.", opciones:["book","keep","take","put"], correcta:0, exp:"'Book' (verbo) = reservar. Ej.: book a table / a room / a flight."},
+{id:"b1-v-22", nivel:"B1", cat:"vocabulario", tipo:"mc", q:"¿Qué significa 'luggage'?", opciones:["alojamiento","equipaje","lugar","carga"], correcta:1, exp:"'Luggage' (o baggage) = equipaje. Es incontable: my luggage IS heavy."},
+{id:"b1-v-23", nivel:"B1", cat:"vocabulario", tipo:"mc", q:"The bathroom is ___, on the first floor.", opciones:["downstairs","upstairs","outside","underground"], correcta:1, exp:"'Upstairs' = arriba (en el piso de arriba). 'Downstairs' = abajo."},
+{id:"b1-v-24", nivel:"B1", cat:"vocabulario", tipo:"mc", q:"¿Qué significa 'to look after'?", opciones:["buscar","cuidar de","mirar atrás","parecerse a"], correcta:1, exp:"'Look after' = cuidar de. Ej.: She looks after her grandmother."},
+{id:"b1-v-25", nivel:"B1", cat:"vocabulario", tipo:"mc", q:"I can't find my keys. I've been ___ them all morning.", opciones:["looking for","looking after","looking at","looking up"], correcta:0, exp:"'Look for' = buscar. Ej.: I'm looking for my keys."},
+{id:"b1-v-26", nivel:"B1", cat:"vocabulario", tipo:"mc", q:"Please ___ the lights when you leave the room.", opciones:["turn off","turn on","turn up","turn around"], correcta:0, exp:"'Turn off' = apagar. 'Turn on' = encender."},
+{id:"b1-v-27", nivel:"B1", cat:"vocabulario", tipo:"mc", q:"¿Qué significa 'healthy'?", opciones:["rico (comida)","sano, saludable","fuerte","limpio"], correcta:1, exp:"'Healthy' = sano. Health = salud."},
+{id:"b1-v-28", nivel:"B1", cat:"vocabulario", tipo:"mc", q:"The library is very ___ — nobody is talking.", opciones:["quite","quiet","quit","loud"], correcta:1, exp:"'Quiet' = silencioso. Ojo: 'quite' = bastante; 'quit' = dejar."},
+{id:"b1-v-29", nivel:"B1", cat:"vocabulario", tipo:"mc", q:"Don't ___ to bring your umbrella — it's going to rain!", opciones:["forget","remember","leave","lose"], correcta:0, exp:"'Don't forget to...' = no olvides... (Remember = recordar.)"},
+{id:"b1-v-30", nivel:"B1", cat:"vocabulario", tipo:"mc", q:"She ___ 2,000 euros a month in her new job.", opciones:["wins","earns","pays","spends"], correcta:1, exp:"'Earn' = ganar dinero trabajando. 'Win' = ganar un premio o partido."},
+{id:"b1-v-31", nivel:"B1", cat:"vocabulario", tipo:"mc", q:"The film was really ___ — I laughed a lot!", opciones:["funny","angry","boring","tired"], correcta:0, exp:"'Funny' = gracioso (hace reír). 'Fun' = divertido (se pasa bien)."},
+{id:"b1-v-32", nivel:"B1", cat:"vocabulario", tipo:"mc", q:"Nice to ___ you! I'm Ana.", opciones:["know","meet","find","see first"], correcta:1, exp:"Al conocer a alguien: Nice to meet you. 'Know' = conocer (ya) a alguien."},
+{id:"b1-v-33", nivel:"B1", cat:"vocabulario", tipo:"mc", q:"Can you ___ me the truth, please?", opciones:["say","tell","talk","speak"], correcta:1, exp:"'Tell someone something': tell me the truth. 'Say' no lleva persona directa."},
+{id:"b1-v-34", nivel:"B1", cat:"vocabulario", tipo:"mc", q:"¿Qué significa 'carpet'?", opciones:["carpeta","alfombra","cartera","cortina"], correcta:1, exp:"Falso amigo: 'carpet' = alfombra. Carpeta = folder."},
+{id:"b1-v-35", nivel:"B1", cat:"vocabulario", tipo:"mc", q:"¿Qué significa 'large'?", opciones:["largo","grande","ancho","lejano"], correcta:1, exp:"Falso amigo: 'large' = grande. Largo = long."},
 
 /* ---------- B1 · GRAMÁTICA ---------- */
 {id:"b1-g-01", nivel:"B1", cat:"gramatica", tipo:"mc", q:"She ___ to London last year.", opciones:["goes","went","has gone","go"], correcta:1, exp:"Pasado simple con 'last year': went."},
@@ -237,20 +276,54 @@ var BANCO = [
 {id:"b1-g-12", nivel:"B1", cat:"gramatica", tipo:"mc", q:"This house ___ in 1990.", opciones:["built","was built","is build","has built"], correcta:1, exp:"Pasiva en pasado: was/were + participio."},
 {id:"b1-g-13", nivel:"B1", cat:"gramatica", tipo:"mc", q:"I enjoy ___ books in the evening.", opciones:["read","to read","reading","reads"], correcta:2, exp:"'Enjoy' siempre va seguido de gerundio (-ing)."},
 {id:"b1-g-14", nivel:"B1", cat:"gramatica", tipo:"mc", q:"The man ___ lives next door is a doctor.", opciones:["which","who","what","whose"], correcta:1, exp:"'Who' para personas; 'which' para cosas; 'whose' posesivo."},
+{id:"b1-g-15", nivel:"B1", cat:"gramatica", tipo:"mc", q:"There ___ a lot of people at the party last night.", opciones:["was","were","is","been"], correcta:1, exp:"'People' es plural: there WERE a lot of people."},
+{id:"b1-g-16", nivel:"B1", cat:"gramatica", tipo:"mc", q:"My sister ___ in a bank.", opciones:["work","works","is work","working"], correcta:1, exp:"Presente simple, 3ª persona singular: añade -s → works."},
+{id:"b1-g-17", nivel:"B1", cat:"gramatica", tipo:"mc", q:"I ___ to the gym on Mondays.", opciones:["go usually","usually go","am usually go","usually going"], correcta:1, exp:"Los adverbios de frecuencia van antes del verbo principal: I usually go."},
+{id:"b1-g-18", nivel:"B1", cat:"gramatica", tipo:"mc", q:"Look at those black clouds! It ___ rain.", opciones:["will","is going to","is","would"], correcta:1, exp:"'Going to' para predicciones con evidencia visible."},
+{id:"b1-g-19", nivel:"B1", cat:"gramatica", tipo:"mc", q:"I ___ TV when you called me.", opciones:["watched","was watching","am watching","watch"], correcta:1, exp:"Pasado continuo: acción en curso interrumpida por otra."},
+{id:"b1-g-20", nivel:"B1", cat:"gramatica", tipo:"mc", q:"This is ___ restaurant in town.", opciones:["the better","the best","best","more good"], correcta:1, exp:"Superlativo: the best (bueno → mejor → el mejor)."},
+{id:"b1-g-21", nivel:"B1", cat:"gramatica", tipo:"mc", q:"She is ___ engineer.", opciones:["a","an","the","—"], correcta:1, exp:"'An' antes de sonido vocálico: an engineer."},
+{id:"b1-g-22", nivel:"B1", cat:"gramatica", tipo:"mc", q:"How ___ apples do you want?", opciones:["much","many","little","any"], correcta:1, exp:"'Many' con contables en plural (apples)."},
+{id:"b1-g-23", nivel:"B1", cat:"gramatica", tipo:"mc", q:"This is ___ car. (el coche de ellos)", opciones:["they","them","their","theirs car"], correcta:2, exp:"Posesivo + sustantivo: their car. 'Theirs' va sin sustantivo."},
+{id:"b1-g-24", nivel:"B1", cat:"gramatica", tipo:"mc", q:"This coffee is ___ hot to drink.", opciones:["too","enough","very much","so much"], correcta:0, exp:"'Too + adjetivo' = demasiado. Too hot to drink."},
+{id:"b1-g-25", nivel:"B1", cat:"gramatica", tipo:"mc", q:"You look ill. You ___ see a doctor.", opciones:["should","would","shall","had"], correcta:0, exp:"'Should' para consejos: deberías ir al médico."},
+{id:"b1-g-26", nivel:"B1", cat:"gramatica", tipo:"mc", q:"I ___ my keys! I can't open the door.", opciones:["lost","have lost","lose","had lost"], correcta:1, exp:"Presente perfecto: acción pasada con resultado presente."},
+{id:"b1-g-27", nivel:"B1", cat:"gramatica", tipo:"mc", q:"A: The phone is ringing. B: Don't worry, I ___ get it.", opciones:["will","am going to","would","do"], correcta:0, exp:"'Will' para decisiones espontáneas tomadas en el momento."},
+{id:"b1-g-28", nivel:"B1", cat:"gramatica", tipo:"mc", q:"If you heat ice, it ___.", opciones:["melts","will melt","would melt","melting"], correcta:0, exp:"Condicional cero (verdades generales): If + presente, presente."},
+{id:"b1-g-29", nivel:"B1", cat:"gramatica", tipo:"mc", q:"My brother is ___ than me.", opciones:["more tall","taller","tallest","as tall"], correcta:1, exp:"Adjetivos cortos: adjetivo + -er + than → taller than."},
+{id:"b1-g-30", nivel:"B1", cat:"gramatica", tipo:"mc", q:"Where ___ you born?", opciones:["did","are","were","have"], correcta:2, exp:"'To be born': Where were you born? I was born in..."},
+{id:"b1-g-31", nivel:"B1", cat:"gramatica", tipo:"mc", q:"My birthday is ___ May.", opciones:["on","in","at","by"], correcta:1, exp:"'In' + meses y años; 'on' + días y fechas; 'at' + horas."},
+{id:"b1-g-32", nivel:"B1", cat:"gramatica", tipo:"mc", q:"See you ___ Monday!", opciones:["in","at","on","by"], correcta:2, exp:"'On' + días de la semana: on Monday."},
+{id:"b1-g-33", nivel:"B1", cat:"gramatica", tipo:"mc", q:"I went to the shop ___ some bread.", opciones:["for buy","to buy","for buying","buy"], correcta:1, exp:"Infinitivo de finalidad: to buy = para comprar."},
+{id:"b1-g-34", nivel:"B1", cat:"gramatica", tipo:"mc", q:"How long ___ your teacher?", opciones:["do you know","have you known","are you knowing","did you knew"], correcta:1, exp:"How long + presente perfecto: have you known."},
+{id:"b1-g-35", nivel:"B1", cat:"gramatica", tipo:"mc", q:"Hurry up! There is very ___ time.", opciones:["few","little","less","small"], correcta:1, exp:"'Little' con incontables (time); 'few' con contables."},
 
-/* ---------- B1 · COMPRENSIÓN (pasaje pB1a) ---------- */
+/* ---------- B1 · COMPRENSIÓN ---------- */
 {id:"b1-c-01", nivel:"B1", cat:"comprension", tipo:"mc", pasaje:"pB1a", q:"Why is Sarah writing to Marta?", opciones:["To invite her to Barcelona","To tell her about her holiday plans","To ask about her new job","To recommend a hotel"], correcta:1, exp:"Dice: \"I'm writing to tell you about my holiday plans.\""},
 {id:"b1-c-02", nivel:"B1", cat:"comprension", tipo:"mc", pasaje:"pB1a", q:"Where are Sarah and Tom going to stay?", opciones:["In a big hotel in the city centre","In a small hotel near the beach","In Marta's flat","In a campsite"], correcta:1, exp:"\"We're staying in a small hotel near the beach.\""},
 {id:"b1-c-03", nivel:"B1", cat:"comprension", tipo:"mc", pasaje:"pB1a", q:"Why was the hotel cheap?", opciones:["Because it is far from the beach","Because they booked early","Because Tom knows the owner","Because it is very small"], correcta:1, exp:"\"...it was quite cheap because we booked early.\""},
 {id:"b1-c-04", nivel:"B1", cat:"comprension", tipo:"mc", pasaje:"pB1a", q:"What does Tom prefer to do?", opciones:["Visit the Sagrada Familia","Relax on the beach","Try lots of tapas","Walk around the Gothic Quarter"], correcta:1, exp:"\"Tom prefers the beach. He says he needs to relax...\""},
 {id:"b1-c-05", nivel:"B1", cat:"comprension", tipo:"mc", pasaje:"pB1a", q:"Why does Marta know Barcelona well?", opciones:["She was born there","She lived there for three years","She visits every summer","She studied tourism"], correcta:1, exp:"\"...you lived there for three years.\""},
-
-/* ---------- B1 · COMPRENSIÓN (pasaje pB1b) ---------- */
 {id:"b1-c-06", nivel:"B1", cat:"comprension", tipo:"mc", pasaje:"pB1b", q:"How much do new members pay per month during the first year?", opciones:["£40","£25","£15","£31"], correcta:1, exp:"\"...pay only £25 a month for the first year (normal price £40).\""},
 {id:"b1-c-07", nivel:"B1", cat:"comprension", tipo:"mc", pasaje:"pB1b", q:"When does the centre close on Sundays?", opciones:["At 10 p.m.","At 6 p.m.","At 6:30 a.m.","It doesn't open on Sundays"], correcta:1, exp:"\"...except on Sundays, when it closes at 6 p.m.\""},
 {id:"b1-c-08", nivel:"B1", cat:"comprension", tipo:"mc", pasaje:"pB1b", q:"Which free class can members do on Thursdays?", opciones:["Yoga","Pilates","Tennis","Swimming"], correcta:1, exp:"\"...yoga on Mondays and Pilates on Thursdays.\""},
 {id:"b1-c-09", nivel:"B1", cat:"comprension", tipo:"mc", pasaje:"pB1b", q:"What must people under 16 do?", opciones:["Pay the normal price","Come with an adult","Bring two photos","Register on the website"], correcta:1, exp:"\"Under-16s must come with an adult.\""},
 {id:"b1-c-10", nivel:"B1", cat:"comprension", tipo:"mc", pasaje:"pB1b", q:"How can you join the sports centre?", opciones:["Only at reception","Only on the website","At reception or on the website","By phone"], correcta:2, exp:"\"...bring a photo and an ID card to reception, or complete the form on our website.\""},
+{id:"b1-c-11", nivel:"B1", cat:"comprension", tipo:"mc", pasaje:"pB1c", q:"What time will the bus leave the school?", opciones:["At 9:00","At 9:15","At 4:30","At 12:00"], correcta:1, exp:"\"The bus will leave the school at 9:15...\""},
+{id:"b1-c-12", nivel:"B1", cat:"comprension", tipo:"mc", pasaje:"pB1c", q:"What time must students arrive at school?", opciones:["By 9 o'clock","By 9:15","By 8:30","By 10 o'clock"], correcta:0, exp:"\"...so students must arrive by 9 o'clock.\""},
+{id:"b1-c-13", nivel:"B1", cat:"comprension", tipo:"mc", pasaje:"pB1c", q:"What is included in the 12 euros?", opciones:["The bus and lunch","The guided tour and a planetarium show","The gift shop","Lunch in the café"], correcta:1, exp:"\"The visit costs 12 euros, which includes the guided tour and a planetarium show.\""},
+{id:"b1-c-14", nivel:"B1", cat:"comprension", tipo:"mc", pasaje:"pB1c", q:"When must families pay?", opciones:["On Friday","Before Wednesday","At the museum","Next month"], correcta:1, exp:"\"Please give the money to the class teacher before Wednesday.\""},
+{id:"b1-c-15", nivel:"B1", cat:"comprension", tipo:"mc", pasaje:"pB1c", q:"Where will they eat if it rains?", opciones:["In the park","In the museum café","At school","On the bus"], correcta:1, exp:"\"If it rains, we will eat inside the museum café instead of the park.\""},
+{id:"b1-c-16", nivel:"B1", cat:"comprension", tipo:"mc", pasaje:"pB1d", q:"What did Paul do five years ago?", opciones:["He walked dogs","He worked in an office","He was a vet","He had a hotel"], correcta:1, exp:"\"Five years ago I worked in an office...\""},
+{id:"b1-c-17", nivel:"B1", cat:"comprension", tipo:"mc", pasaje:"pB1d", q:"How did Paul start walking dogs?", opciones:["He saw an advert","His neighbour was ill and asked him","He studied for it","His boss suggested it"], correcta:1, exp:"\"...my neighbour asked me to walk her dog because she was ill...\""},
+{id:"b1-c-18", nivel:"B1", cat:"comprension", tipo:"mc", pasaje:"pB1d", q:"Why does Paul start work early?", opciones:["Because dogs wake up early","Because some owners leave for work at 8","Because it is cooler","Because he finishes at midday"], correcta:1, exp:"\"I start early, at 7:30, because some owners leave for work at 8.\""},
+{id:"b1-c-19", nivel:"B1", cat:"comprension", tipo:"mc", pasaje:"pB1d", q:"What is the most difficult part of his job?", opciones:["The winter","The rain","Angry dogs","Getting up early"], correcta:1, exp:"\"The most difficult part is the rain: wet dogs are not fun.\""},
+{id:"b1-c-20", nivel:"B1", cat:"comprension", tipo:"mc", pasaje:"pB1d", q:"What does Paul want to do next year?", opciones:["Go back to the office","Open a small hotel for dogs","Walk more dogs","Move to another city"], correcta:1, exp:"\"Next year I want to open a small hotel for dogs.\""},
+{id:"b1-c-21", nivel:"B1", cat:"comprension", tipo:"mc", pasaje:"pB1e", q:"When is the museum closed?", opciones:["On Sundays","On Mondays and public holidays","On Tuesdays","In the mornings"], correcta:1, exp:"\"It is closed on Mondays and on public holidays.\""},
+{id:"b1-c-22", nivel:"B1", cat:"comprension", tipo:"mc", pasaje:"pB1e", q:"Who can enter free every day?", opciones:["Students","Children under 10","Adults with tickets","Everyone"], correcta:1, exp:"\"...children under 10 enter free.\""},
+{id:"b1-c-23", nivel:"B1", cat:"comprension", tipo:"mc", pasaje:"pB1e", q:"When is the museum free for everyone?", opciones:["Every Sunday","On the first Sunday of every month","On public holidays","In August"], correcta:1, exp:"\"On the first Sunday of every month, entrance is free for everyone.\""},
+{id:"b1-c-24", nivel:"B1", cat:"comprension", tipo:"mc", pasaje:"pB1e", q:"Where is photography NOT allowed?", opciones:["In the café","In the Egyptian Gallery","On the top floor","At the main entrance"], correcta:1, exp:"\"Photography is allowed in all rooms except the Egyptian Gallery.\""},
+{id:"b1-c-25", nivel:"B1", cat:"comprension", tipo:"mc", pasaje:"pB1e", q:"Where do guided tours start?", opciones:["At the café","At the main entrance","In the Egyptian Gallery","At the lift"], correcta:1, exp:"\"Guided tours... start at 11:00 and 16:00 at the main entrance.\""},
 
 /* ---------- B1 · TRADUCCIÓN ---------- */
 {id:"b1-t-01", nivel:"B1", cat:"traduccion", tipo:"texto", q:"Traduce al inglés: «Tengo veinte años.»", respuestas:["I am twenty years old","I am twenty","I am 20 years old","I am 20"], exp:"En inglés la edad se expresa con el verbo TO BE: I am twenty (years old)."},
@@ -261,6 +334,18 @@ var BANCO = [
 {id:"b1-t-06", nivel:"B1", cat:"traduccion", tipo:"texto", q:"Traduce al inglés: «Nunca he estado en Londres.»", respuestas:["I have never been to London","I have never been in London","Never have I been to London"], exp:"Presente perfecto: I have never been to London."},
 {id:"b1-t-07", nivel:"B1", cat:"traduccion", tipo:"texto", q:"Traduce al inglés: «Hace frío hoy.»", respuestas:["It is cold today","Today it is cold","It is cold out today"], exp:"El tiempo atmosférico usa 'it': It's cold today."},
 {id:"b1-t-08", nivel:"B1", cat:"traduccion", tipo:"texto", q:"Traduce al inglés: «¿Cuánto cuesta esto?»", respuestas:["How much is this","How much does this cost","How much is it","How much does it cost"], exp:"How much is this? / How much does this cost?"},
+{id:"b1-t-09", nivel:"B1", cat:"traduccion", tipo:"texto", q:"Traduce al inglés: «¿De dónde eres?»", respuestas:["Where are you from","Where do you come from"], exp:"Where are you from? / Where do you come from?"},
+{id:"b1-t-10", nivel:"B1", cat:"traduccion", tipo:"texto", q:"Traduce al inglés: «Mi hermana es más alta que yo.»", respuestas:["My sister is taller than me","My sister is taller than I am"], exp:"Comparativo: taller than me / than I am."},
+{id:"b1-t-11", nivel:"B1", cat:"traduccion", tipo:"texto", q:"Traduce al inglés: «Estoy aprendiendo a conducir.»", respuestas:["I am learning to drive","I am learning how to drive"], exp:"Learn + to + infinitivo: I'm learning to drive."},
+{id:"b1-t-12", nivel:"B1", cat:"traduccion", tipo:"texto", q:"Traduce al inglés: «¿Qué hora es?»", respuestas:["What time is it","What is the time"], exp:"What time is it? / What's the time?"},
+{id:"b1-t-13", nivel:"B1", cat:"traduccion", tipo:"texto", q:"Traduce al inglés: «Voy a visitar a mis abuelos este fin de semana.»", respuestas:["I am going to visit my grandparents this weekend","This weekend I am going to visit my grandparents"], exp:"Plan de futuro: I'm going to visit my grandparents this weekend."},
+{id:"b1-t-14", nivel:"B1", cat:"traduccion", tipo:"texto", q:"Traduce al inglés: «No me gusta nada el café.»", respuestas:["I do not like coffee at all","I really do not like coffee","I hate coffee"], exp:"Énfasis negativo: I don't like coffee AT ALL."},
+{id:"b1-t-15", nivel:"B1", cat:"traduccion", tipo:"texto", q:"Traduce al inglés: «Había mucha gente en la fiesta.»", respuestas:["There were a lot of people at the party","There were lots of people at the party","There were many people at the party"], exp:"There were (plural) a lot of people..."},
+{id:"b1-t-16", nivel:"B1", cat:"traduccion", tipo:"texto", q:"Traduce al inglés: «¿Puedo abrir la ventana?»", respuestas:["Can I open the window","May I open the window","Could I open the window"], exp:"Pedir permiso: Can/May/Could I open the window?"},
+{id:"b1-t-17", nivel:"B1", cat:"traduccion", tipo:"texto", q:"Traduce al inglés: «Tienes que hacer los deberes.»", respuestas:["You have to do your homework","You must do your homework","You have to do the homework"], exp:"Obligación: have to / must + do homework (hacer deberes = DO homework)."},
+{id:"b1-t-18", nivel:"B1", cat:"traduccion", tipo:"texto", q:"Traduce al inglés: «Estamos viendo una película.»", respuestas:["We are watching a film","We are watching a movie"], exp:"Ver la tele/películas = WATCH: We're watching a film."},
+{id:"b1-t-19", nivel:"B1", cat:"traduccion", tipo:"texto", q:"Traduce al inglés: «Él trabaja en un hospital.»", respuestas:["He works in a hospital","He works at a hospital"], exp:"3ª persona: He workS in/at a hospital."},
+{id:"b1-t-20", nivel:"B1", cat:"traduccion", tipo:"texto", q:"Traduce al inglés: «¿Cuándo es tu cumpleaños?»", respuestas:["When is your birthday"], exp:"When is your birthday?"},
 
 /* ---------- B2 · VOCABULARIO ---------- */
 {id:"b2-v-01", nivel:"B2", cat:"vocabulario", tipo:"mc", q:"I've decided to ___ smoking.", opciones:["give up","give in","give away","give back"], correcta:0, exp:"'Give up' = dejar (un hábito). Give in = ceder; give away = regalar."},
@@ -275,6 +360,29 @@ var BANCO = [
 {id:"b2-v-10", nivel:"B2", cat:"vocabulario", tipo:"mc", q:"Please ___ me to call my mother later.", opciones:["remember","remind","recall","record"], correcta:1, exp:"'Remind someone to do sth' = recordar a alguien que haga algo."},
 {id:"b2-v-11", nivel:"B2", cat:"vocabulario", tipo:"mc", q:"¿Qué significa 'achieve'?", opciones:["archivar","lograr, conseguir","intentar","mejorar"], correcta:1, exp:"'Achieve' = lograr. Ej.: She achieved her goal."},
 {id:"b2-v-12", nivel:"B2", cat:"vocabulario", tipo:"mc", q:"¿Qué significa 'assume'?", opciones:["asumir un cargo","suponer","resumir","consumir"], correcta:1, exp:"'Assume' = suponer, dar por hecho. Ej.: I assume you're coming."},
+{id:"b2-v-13", nivel:"B2", cat:"vocabulario", tipo:"mc", q:"The scientists ___ an important experiment last month.", opciones:["carried out","carried on","carried away","carried off"], correcta:0, exp:"'Carry out' = llevar a cabo, realizar. Carry on = continuar."},
+{id:"b2-v-14", nivel:"B2", cat:"vocabulario", tipo:"mc", q:"She ___ a brilliant solution to the problem.", opciones:["came up with","came across","came into","came over"], correcta:0, exp:"'Come up with' = idear, ocurrírsele a uno. Come across = encontrarse con."},
+{id:"b2-v-15", nivel:"B2", cat:"vocabulario", tipo:"mc", q:"He ___ the job offer because the salary was too low.", opciones:["turned down","turned up","turned off","turned over"], correcta:0, exp:"'Turn down' = rechazar. Turn up = aparecer."},
+{id:"b2-v-16", nivel:"B2", cat:"vocabulario", tipo:"mc", q:"They ___ their own company in 2020.", opciones:["set up","set off","set out","set back"], correcta:0, exp:"'Set up' = montar, fundar. Set off = partir, salir de viaje."},
+{id:"b2-v-17", nivel:"B2", cat:"vocabulario", tipo:"mc", q:"I didn't ___ that he was joking until he laughed.", opciones:["realise","suppose","remind","pretend"], correcta:0, exp:"'Realise' = darse cuenta. Falso amigo: no es 'realizar' (= carry out)."},
+{id:"b2-v-18", nivel:"B2", cat:"vocabulario", tipo:"mc", q:"We can't ___ a holiday abroad this year.", opciones:["afford","pay","spend","cost"], correcta:0, exp:"'Afford' = permitirse (económicamente). Can't afford = no poder pagar."},
+{id:"b2-v-19", nivel:"B2", cat:"vocabulario", tipo:"mc", q:"She decided to ___ the job at the hospital.", opciones:["apply for","apply to","ask","demand"], correcta:0, exp:"'Apply for a job' = solicitar un empleo. Demand = exigir."},
+{id:"b2-v-20", nivel:"B2", cat:"vocabulario", tipo:"mc", q:"You ___ me ten euros — remember?", opciones:["owe","own","owned","lend"], correcta:0, exp:"'Owe' = deber (dinero). 'Own' = poseer."},
+{id:"b2-v-21", nivel:"B2", cat:"vocabulario", tipo:"mc", q:"¿Qué significa 'career'?", opciones:["carrera universitaria","trayectoria profesional","carrera (correr)","currículum"], correcta:1, exp:"Falso amigo: 'career' = trayectoria profesional. Carrera universitaria = degree."},
+{id:"b2-v-22", nivel:"B2", cat:"vocabulario", tipo:"mc", q:"¿Qué significa 'compromise'?", opciones:["compromiso (obligación)","acuerdo mutuo","promesa","cita"], correcta:1, exp:"Falso amigo: 'compromise' = acuerdo con concesiones. Compromiso = commitment."},
+{id:"b2-v-23", nivel:"B2", cat:"vocabulario", tipo:"mc", q:"¿Qué significa 'fabric'?", opciones:["fábrica","tela, tejido","fabricante","estructura"], correcta:1, exp:"Falso amigo: 'fabric' = tela. Fábrica = factory."},
+{id:"b2-v-24", nivel:"B2", cat:"vocabulario", tipo:"mc", q:"¿Qué significa 'attempt'?", opciones:["atentado","intento","tentación","logro"], correcta:1, exp:"'Attempt' = intento. Ej.: my first attempt = mi primer intento."},
+{id:"b2-v-25", nivel:"B2", cat:"vocabulario", tipo:"mc", q:"¿Qué significa 'threat'?", opciones:["trato","amenaza","hilo","truco"], correcta:1, exp:"'Threat' = amenaza. Ojo: 'thread' = hilo."},
+{id:"b2-v-26", nivel:"B2", cat:"vocabulario", tipo:"mc", q:"¿Qué significa 'wealthy'?", opciones:["saludable","rico, adinerado","sabio","valioso"], correcta:1, exp:"'Wealthy' = rico. Wealth = riqueza. Ojo: healthy = sano."},
+{id:"b2-v-27", nivel:"B2", cat:"vocabulario", tipo:"mc", q:"A crowd ___ outside the stadium before the match.", opciones:["gathered","collected","joined","grouped up"], correcta:0, exp:"'Gather' = reunirse, congregarse. A crowd gathered = se congregó una multitud."},
+{id:"b2-v-28", nivel:"B2", cat:"vocabulario", tipo:"mc", q:"You should ___ eating late at night.", opciones:["avoid","deny","refuse","prevent of"], correcta:0, exp:"'Avoid + -ing' = evitar hacer algo."},
+{id:"b2-v-29", nivel:"B2", cat:"vocabulario", tipo:"mc", q:"She finally ___ in passing her driving test.", opciones:["succeeded","achieved","managed","got"], correcta:0, exp:"'Succeed IN + -ing' = lograr hacer algo. (Manage TO + infinitivo.)"},
+{id:"b2-v-30", nivel:"B2", cat:"vocabulario", tipo:"mc", q:"¿Qué significa 'skilled'?", opciones:["asustado","cualificado, hábil","asesinado","estirado"], correcta:1, exp:"'Skilled' = cualificado, con destreza. Skill = habilidad."},
+{id:"b2-v-31", nivel:"B2", cat:"vocabulario", tipo:"mc", q:"¿Qué significa 'argument'?", opciones:["argumento de una película","discusión, disputa","razonamiento legal","acuerdo"], correcta:1, exp:"'Argument' = discusión. Argumento (de película) = plot."},
+{id:"b2-v-32", nivel:"B2", cat:"vocabulario", tipo:"mc", q:"Don't tell me the ending — you'll ___ the film!", opciones:["spoil","break","damage","waste"], correcta:0, exp:"'Spoil' = estropear (de ahí 'spoiler')."},
+{id:"b2-v-33", nivel:"B2", cat:"vocabulario", tipo:"mc", q:"¿Qué significa 'to encourage'?", opciones:["encarecer","animar, alentar","encargar","obligar"], correcta:1, exp:"'Encourage' = animar. Discourage = desanimar."},
+{id:"b2-v-34", nivel:"B2", cat:"vocabulario", tipo:"mc", q:"¿Qué significa 'disappointed'?", opciones:["desaparecido","decepcionado","despedido","desapuntado"], correcta:1, exp:"'Disappointed' = decepcionado. Disappear = desaparecer."},
+{id:"b2-v-35", nivel:"B2", cat:"vocabulario", tipo:"mc", q:"¿Qué significa 'to resign'?", opciones:["resignarse","dimitir","volver a firmar","renovar"], correcta:1, exp:"'Resign' = dimitir. Resignarse = to resign oneself TO something."},
 
 /* ---------- B2 · GRAMÁTICA ---------- */
 {id:"b2-g-01", nivel:"B2", cat:"gramatica", tipo:"mc", q:"If I ___ rich, I would travel the world.", opciones:["am","was being","were","would be"], correcta:2, exp:"Segunda condicional: If + pasado (were), would + infinitivo."},
@@ -289,20 +397,56 @@ var BANCO = [
 {id:"b2-g-10", nivel:"B2", cat:"gramatica", tipo:"mc", q:"I'd rather you ___ tomorrow instead of today.", opciones:["come","came","will come","to come"], correcta:1, exp:"'I'd rather + sujeto + pasado': I'd rather you came tomorrow."},
 {id:"b2-g-11", nivel:"B2", cat:"gramatica", tipo:"mc", q:"The report ___ yet.", opciones:["hasn't finished","hasn't been finished","didn't finish","isn't finish"], correcta:1, exp:"Pasiva con presente perfecto: hasn't been + participio."},
 {id:"b2-g-12", nivel:"B2", cat:"gramatica", tipo:"mc", q:"My sister, ___ lives in Madrid, is a nurse.", opciones:["that","who","which","whom"], correcta:1, exp:"Relativa explicativa (entre comas): 'who' para personas; 'that' no se puede usar."},
+{id:"b2-g-13", nivel:"B2", cat:"gramatica", tipo:"mc", q:"If I had gone to bed earlier, I ___ so tired now.", opciones:["wouldn't have been","wouldn't be","won't be","am not"], correcta:1, exp:"Condicional mixta: pasado (had gone) con resultado presente (wouldn't be now)."},
+{id:"b2-g-14", nivel:"B2", cat:"gramatica", tipo:"mc", q:"You won't pass the exam ___ you study harder.", opciones:["if","unless","in case","provided"], correcta:1, exp:"'Unless' = a menos que (= if you don't study)."},
+{id:"b2-g-15", nivel:"B2", cat:"gramatica", tipo:"mc", q:"Take an umbrella ___ it rains.", opciones:["unless","in case","although","so that"], correcta:1, exp:"'In case' = por si acaso: por si llueve."},
+{id:"b2-g-16", nivel:"B2", cat:"gramatica", tipo:"mc", q:"She asked me where ___.", opciones:["do I live","I lived","did I live","do I lived"], correcta:1, exp:"Pregunta indirecta: orden de afirmación y un paso atrás en el tiempo: where I lived."},
+{id:"b2-g-17", nivel:"B2", cat:"gramatica", tipo:"mc", q:"I ___ getting up early now — I don't mind it any more.", opciones:["used to","am used to","use to","was used"], correcta:1, exp:"'Be used to + -ing' = estar acostumbrado a. 'Used to + inf' = solía."},
+{id:"b2-g-18", nivel:"B2", cat:"gramatica", tipo:"mc", q:"It was ___ a good film that I watched it twice.", opciones:["so","such","too","very"], correcta:1, exp:"'Such + (a) + adjetivo + sustantivo'. 'So + adjetivo' solo."},
+{id:"b2-g-19", nivel:"B2", cat:"gramatica", tipo:"mc", q:"He isn't old ___ to drive.", opciones:["too","enough","so","very"], correcta:1, exp:"'Enough' va DESPUÉS del adjetivo: old enough."},
+{id:"b2-g-20", nivel:"B2", cat:"gramatica", tipo:"mc", q:"He is said ___ very rich.", opciones:["that he is","to be","being","be"], correcta:1, exp:"Pasiva de opinión: He is said TO BE rich = se dice que es rico."},
+{id:"b2-g-21", nivel:"B2", cat:"gramatica", tipo:"mc", q:"\"I don't like olives.\" \"___ do I.\"", opciones:["So","Neither","Either","Also"], correcta:1, exp:"Acuerdo con negativa: Neither do I (yo tampoco). Con afirmativa: So do I."},
+{id:"b2-g-22", nivel:"B2", cat:"gramatica", tipo:"mc", q:"I wish I ___ harder when I was at school.", opciones:["studied","had studied","would study","study"], correcta:1, exp:"'Wish + past perfect' para lamentos del pasado."},
+{id:"b2-g-23", nivel:"B2", cat:"gramatica", tipo:"mc", q:"You ___ bought bread — we already have plenty.", opciones:["needn't have","didn't need","mustn't have","shouldn't"], correcta:0, exp:"'Needn't have + participio' = lo hiciste pero no era necesario."},
+{id:"b2-g-24", nivel:"B2", cat:"gramatica", tipo:"mc", q:"This time tomorrow, I ___ on the beach.", opciones:["will lie","will be lying","am lying","will have lain"], correcta:1, exp:"Futuro continuo: acción en curso en un momento futuro."},
+{id:"b2-g-25", nivel:"B2", cat:"gramatica", tipo:"mc", q:"By 2030, we ___ in this house for twenty years.", opciones:["will live","will have lived","are living","will be live"], correcta:1, exp:"Futuro perfecto: will have + participio (para entonces habremos vivido)."},
+{id:"b2-g-26", nivel:"B2", cat:"gramatica", tipo:"mc", q:"___ he was tired, he kept working.", opciones:["Despite","Although","In spite","However"], correcta:1, exp:"'Although' + oración completa. 'Despite' + sustantivo/gerundio."},
+{id:"b2-g-27", nivel:"B2", cat:"gramatica", tipo:"mc", q:"She's very good ___ new languages.", opciones:["at learning","in learning","to learn","for learn"], correcta:0, exp:"'Good at + -ing'. Tras preposición, el verbo va en gerundio."},
+{id:"b2-g-28", nivel:"B2", cat:"gramatica", tipo:"mc", q:"I must get my car ___ before the trip.", opciones:["repair","repaired","to repair","repairing"], correcta:1, exp:"'Get something done': get my car repaired = que me lo reparen."},
+{id:"b2-g-29", nivel:"B2", cat:"gramatica", tipo:"mc", q:"You ___ told me you weren't coming! I waited for two hours.", opciones:["should have","must have","would have","can have"], correcta:0, exp:"'Should have + participio' = reproche: deberías haberlo hecho."},
+{id:"b2-g-30", nivel:"B2", cat:"gramatica", tipo:"mc", q:"That's the woman ___ son won the prize.", opciones:["who","which","whose","that"], correcta:2, exp:"'Whose' = cuyo/cuya: la mujer cuyo hijo ganó."},
+{id:"b2-g-31", nivel:"B2", cat:"gramatica", tipo:"mc", q:"___ money doesn't always bring happiness.", opciones:["The","A","— (sin artículo)","Some of"], correcta:2, exp:"Sustantivos incontables en sentido general: sin artículo. Money doesn't..."},
+{id:"b2-g-32", nivel:"B2", cat:"gramatica", tipo:"mc", q:"Not only ___ late, but he also forgot the tickets.", opciones:["he was","was he","he is","is he"], correcta:1, exp:"Tras 'Not only' al inicio: inversión → Not only WAS HE late..."},
+{id:"b2-g-33", nivel:"B2", cat:"gramatica", tipo:"mc", q:"She works ___ a nurse in a big hospital.", opciones:["like","as","such as","how"], correcta:1, exp:"'As' + profesión (trabaja DE enfermera). 'Like' = como (parecido a)."},
+{id:"b2-g-34", nivel:"B2", cat:"gramatica", tipo:"mc", q:"He ___ be at home — all the lights are on.", opciones:["must","can't","might not","should have"], correcta:0, exp:"Deducción presente afirmativa: must be = debe de estar."},
+{id:"b2-g-35", nivel:"B2", cat:"gramatica", tipo:"mc", q:"The meeting ___ until next week.", opciones:["has postponed","has been postponed","postponed","is postponing"], correcta:1, exp:"Pasiva: la reunión HA SIDO pospuesta → has been postponed."},
 
-/* ---------- B2 · COMPRENSIÓN (pasaje pB2a) ---------- */
+/* ---------- B2 · COMPRENSIÓN ---------- */
 {id:"b2-c-01", nivel:"B2", cat:"comprension", tipo:"mc", pasaje:"pB2a", q:"What did many people celebrate when remote work first arrived?", opciones:["Higher salaries","The end of long commutes and rigid schedules","Smaller offices","More meetings"], correcta:1, exp:"\"...many people celebrated the end of long commutes and rigid schedules.\""},
 {id:"b2-c-02", nivel:"B2", cat:"comprension", tipo:"mc", pasaje:"pB2a", q:"What do almost half of the workers surveyed admit?", opciones:["They are less productive at home","They work longer hours than in the office","They miss their colleagues","They want to change jobs"], correcta:1, exp:"\"...almost half admit they work longer hours than they did in the office.\""},
 {id:"b2-c-03", nivel:"B2", cat:"comprension", tipo:"mc", pasaje:"pB2a", q:"According to Dr. Carter, why do people answer emails at midnight?", opciones:["Because their bosses demand it","Simply because the laptop is there","Because they are more creative at night","Because of different time zones"], correcta:1, exp:"\"People answer emails at midnight simply because the laptop is there.\""},
 {id:"b2-c-04", nivel:"B2", cat:"comprension", tipo:"mc", pasaje:"pB2a", q:"Which of these does Dr. Carter recommend?", opciones:["Working from the kitchen table","A fixed finishing time","Answering emails quickly","Longer working hours"], correcta:1, exp:"Recomienda rutinas claras: \"a fixed finishing time, a separate working space, and regular breaks\"."},
 {id:"b2-c-05", nivel:"B2", cat:"comprension", tipo:"mc", pasaje:"pB2a", q:"Why have some companies asked staff to return to the office?", opciones:["To save money","They believe creativity suffers without face-to-face contact","Because employees requested it","To reduce working hours"], correcta:1, exp:"\"...others insist that creativity suffers without face-to-face contact...\""},
-
-/* ---------- B2 · COMPRENSIÓN (pasaje pB2b) ---------- */
 {id:"b2-c-06", nivel:"B2", cat:"comprension", tipo:"mc", pasaje:"pB2b", q:"What was most of the rubbish collected last year?", opciones:["Glass","Plastic","Metal","Paper"], correcta:1, exp:"\"...almost two tonnes of rubbish, most of it plastic.\""},
 {id:"b2-c-07", nivel:"B2", cat:"comprension", tipo:"mc", pasaje:"pB2b", q:"Who can volunteer?", opciones:["Anyone over 14","Only people with experience","Only members of the association","Anyone over 18"], correcta:0, exp:"\"No experience is necessary, but volunteers must be over 14...\""},
-{id:"b2-c-08", nivel:"B2", cat:"comprension", tipo:"mc", pasaje:"pB2b", q:"What will the organisers provide for everyone?", opciones:["Old clothes and boots","Gloves and bags","Sandwiches for all participants","Transport to the river"], correcta:1, exp:"\"Gloves and bags will be provided by the organisers...\" La comida solo está garantizada si te registras antes del 5 de septiembre."},
+{id:"b2-c-08", nivel:"B2", cat:"comprension", tipo:"mc", pasaje:"pB2b", q:"What will the organisers provide for everyone?", opciones:["Old clothes and boots","Gloves and bags","Sandwiches for all participants","Transport to the river"], correcta:1, exp:"\"Gloves and bags will be provided...\" La comida solo si te registras antes del 5 de septiembre."},
 {id:"b2-c-09", nivel:"B2", cat:"comprension", tipo:"mc", pasaje:"pB2b", q:"Who is guaranteed free food and drinks?", opciones:["Everyone who takes part","Those who register before 5th September","Volunteers over 18","Those who arrive before 8 a.m."], correcta:1, exp:"\"...free sandwiches and drinks for everyone who registers before 5th September.\""},
 {id:"b2-c-10", nivel:"B2", cat:"comprension", tipo:"mc", pasaje:"pB2b", q:"How will participants know if the event is cancelled?", opciones:["By email the day before","On the website by 8 a.m. on the day","By phone","At the river bank"], correcta:1, exp:"\"Any decision will be announced on the website by 8 a.m. on the day.\""},
+{id:"b2-c-11", nivel:"B2", cat:"comprension", tipo:"mc", pasaje:"pB2c", q:"How did Daniel's classmates react at first?", opciones:["They helped him","They laughed at him","They ignored him","They told the teachers"], correcta:1, exp:"\"At first, his classmates laughed at him.\""},
+{id:"b2-c-12", nivel:"B2", cat:"comprension", tipo:"mc", pasaje:"pB2c", q:"What did Daniel do with the litter he collected?", opciones:["He recycled it at home","He photographed it and posted the pictures online","He took it to the company","He sold it"], correcta:1, exp:"\"Daniel photographed everything he collected and posted the pictures online...\""},
+{id:"b2-c-13", nivel:"B2", cat:"comprension", tipo:"mc", pasaje:"pB2c", q:"Why did the packaging company contact Daniel?", opciones:["To ask him to stop","Because its logo appeared in many of his photos","To offer him a job","To sue him"], correcta:1, exp:"\"...a local packaging company — whose logo appeared in too many of his photos — contacted him.\""},
+{id:"b2-c-14", nivel:"B2", cat:"comprension", tipo:"mc", pasaje:"pB2c", q:"What did the company promise to do?", opciones:["Pay him a salary","Redesign their bottles with recycled plastic","Clean the river themselves","Stop making bottles"], correcta:1, exp:"\"...promised to redesign their bottles with recycled plastic.\""},
+{id:"b2-c-15", nivel:"B2", cat:"comprension", tipo:"mc", pasaje:"pB2c", q:"What is Daniel's main lesson?", opciones:["Recycling is easy","Companies listen when their name is involved","Complaining works best","Photography is a good career"], correcta:1, exp:"\"Companies listen when their name is involved.\""},
+{id:"b2-c-16", nivel:"B2", cat:"comprension", tipo:"mc", pasaje:"pB2d", q:"What do supporters of a phone ban say?", opciones:["Students learn technology better","Students concentrate better and socialise more","Phones are too expensive","Teachers prefer tablets"], correcta:1, exp:"\"...students concentrate better and socialise more when phones are locked away.\""},
+{id:"b2-c-17", nivel:"B2", cat:"comprension", tipo:"mc", pasaje:"pB2d", q:"What happened at the school in Manchester?", opciones:["Exam results improved after strict rules","Students protested","Phones were stolen","Teachers left the school"], correcta:0, exp:"\"...exam results improved noticeably two years after introducing strict rules.\""},
+{id:"b2-c-18", nivel:"B2", cat:"comprension", tipo:"mc", pasaje:"pB2d", q:"What is the main argument AGAINST a ban?", opciones:["Phones are cheap","Children need to learn to use technology responsibly","Exams are easier with phones","Teachers can't control students"], correcta:1, exp:"\"...children need to learn to use technology responsibly...\""},
+{id:"b2-c-19", nivel:"B2", cat:"comprension", tipo:"mc", pasaje:"pB2d", q:"What middle position does the article suggest?", opciones:["A total ban","No rules at all","Clear limits during lessons plus honest education","Phones only at weekends"], correcta:2, exp:"\"...clear limits during lessons, combined with honest education about attention, privacy and social media.\""},
+{id:"b2-c-20", nivel:"B2", cat:"comprension", tipo:"mc", pasaje:"pB2d", q:"What does the head teacher's quote mean?", opciones:["Phones should be forbidden","The real problem is having no rules","Teachers are the enemy","Rules don't work"], correcta:1, exp:"\"The phone is not the enemy. The absence of rules is.\" El problema es la falta de normas."},
+{id:"b2-c-21", nivel:"B2", cat:"comprension", tipo:"mc", pasaje:"pB2e", q:"Which second language is preferred?", opciones:["French","German","Italian","Spanish"], correcta:1, exp:"\"...at least one other European language, preferably German.\""},
+{id:"b2-c-22", nivel:"B2", cat:"comprension", tipo:"mc", pasaje:"pB2e", q:"How often will the assistant travel?", opciones:["Every month","Around four trips a year","Twice a week","Never"], correcta:1, exp:"\"...around four trips a year, mostly within Europe.\""},
+{id:"b2-c-23", nivel:"B2", cat:"comprension", tipo:"mc", pasaje:"pB2e", q:"Is experience in the food sector necessary?", opciones:["Yes, at least two years","No, because full training will be provided","Yes, but only for travel","Only for German speakers"], correcta:1, exp:"\"...an advantage but not essential, as full training will be provided.\""},
+{id:"b2-c-24", nivel:"B2", cat:"comprension", tipo:"mc", pasaje:"pB2e", q:"When can the assistant start working from home?", opciones:["Immediately","After the first three months","After a year","Never"], correcta:1, exp:"\"...working from home two days a week after the first three months.\""},
+{id:"b2-c-25", nivel:"B2", cat:"comprension", tipo:"mc", pasaje:"pB2e", q:"What must applications include?", opciones:["A photo and references","A CV and a short cover letter in English","A German certificate","A video presentation"], correcta:1, exp:"\"Applications, including a CV and a short cover letter in English...\""},
 
 /* ---------- B2 · TRADUCCIÓN ---------- */
 {id:"b2-t-01", nivel:"B2", cat:"traduccion", tipo:"texto", q:"Traduce al inglés: «Si lo hubiera sabido, te habría llamado.»", respuestas:["If I had known I would have called you","If I had known it I would have called you","Had I known I would have called you"], exp:"Tercera condicional: If I had known, I would have called you."},
@@ -312,7 +456,19 @@ var BANCO = [
 {id:"b2-t-05", nivel:"B2", cat:"traduccion", tipo:"texto", q:"Traduce al inglés: «Deberías haber estudiado más.»", respuestas:["You should have studied more","You should have studied harder"], exp:"Reproche sobre el pasado: should have + participio."},
 {id:"b2-t-06", nivel:"B2", cat:"traduccion", tipo:"texto", q:"Traduce al inglés: «Cuanto más practicas, más aprendes.»", respuestas:["The more you practise the more you learn","The more you practice the more you learn"], exp:"Comparativo doble: The more you practise, the more you learn."},
 {id:"b2-t-07", nivel:"B2", cat:"traduccion", tipo:"texto", q:"Traduce al inglés: «Hace tres años que vivo aquí.»", respuestas:["I have lived here for three years","I have been living here for three years"], exp:"Presente perfecto (simple o continuo) + for: I've lived here for three years."},
-{id:"b2-t-08", nivel:"B2", cat:"traduccion", tipo:"texto", q:"Traduce al inglés: «Me dijo que vendría mañana.» (él)", respuestas:["He told me he would come tomorrow","He told me that he would come tomorrow","He said he would come tomorrow","He said that he would come tomorrow"], exp:"Estilo indirecto: will → would. He told me (that) he would come tomorrow."}
+{id:"b2-t-08", nivel:"B2", cat:"traduccion", tipo:"texto", q:"Traduce al inglés: «Me dijo que vendría mañana.» (él)", respuestas:["He told me he would come tomorrow","He told me that he would come tomorrow","He said he would come tomorrow","He said that he would come tomorrow"], exp:"Estilo indirecto: will → would. He told me (that) he would come tomorrow."},
+{id:"b2-t-09", nivel:"B2", cat:"traduccion", tipo:"texto", q:"Traduce al inglés: «No tengo ganas de salir esta noche.»", respuestas:["I do not feel like going out tonight","I do not feel like going out this evening"], exp:"'Feel like + -ing' = tener ganas de: I don't feel like going out."},
+{id:"b2-t-10", nivel:"B2", cat:"traduccion", tipo:"texto", q:"Traduce al inglés: «Merece la pena visitar ese museo.»", respuestas:["It is worth visiting that museum","That museum is worth visiting","That museum is worth a visit"], exp:"'Be worth + -ing': It's worth visiting that museum."},
+{id:"b2-t-11", nivel:"B2", cat:"traduccion", tipo:"texto", q:"Traduce al inglés: «Se me da bien cocinar.»", respuestas:["I am good at cooking"], exp:"'Good at + -ing': I'm good at cooking."},
+{id:"b2-t-12", nivel:"B2", cat:"traduccion", tipo:"texto", q:"Traduce al inglés: «Cuando llegué, ya se habían ido.»", respuestas:["When I arrived they had already left","When I arrived they had already gone","They had already left when I arrived","They had already gone when I arrived"], exp:"Past perfect: they had already left."},
+{id:"b2-t-13", nivel:"B2", cat:"traduccion", tipo:"texto", q:"Traduce al inglés: «Este puente fue construido hace cien años.»", respuestas:["This bridge was built a hundred years ago","This bridge was built one hundred years ago","This bridge was built 100 years ago"], exp:"Pasiva en pasado: was built... + ago."},
+{id:"b2-t-14", nivel:"B2", cat:"traduccion", tipo:"texto", q:"Traduce al inglés: «¿Te importaría cerrar la puerta?»", respuestas:["Would you mind closing the door","Do you mind closing the door"], exp:"'Would you mind + -ing?': Would you mind closing the door?"},
+{id:"b2-t-15", nivel:"B2", cat:"traduccion", tipo:"texto", q:"Traduce al inglés: «Estoy acostumbrado a madrugar.»", respuestas:["I am used to getting up early","I am used to waking up early"], exp:"'Be used to + -ing': I'm used to getting up early."},
+{id:"b2-t-16", nivel:"B2", cat:"traduccion", tipo:"texto", q:"Traduce al inglés: «Es la película más aburrida que he visto nunca.»", respuestas:["It is the most boring film I have ever seen","It is the most boring movie I have ever seen","This is the most boring film I have ever seen","This is the most boring movie I have ever seen"], exp:"Superlativo + ever: the most boring film I've EVER seen."},
+{id:"b2-t-17", nivel:"B2", cat:"traduccion", tipo:"texto", q:"Traduce al inglés: «Me hicieron esperar una hora.»", respuestas:["They made me wait for an hour","They made me wait an hour","I was made to wait for an hour","I was made to wait an hour"], exp:"'Make someone do' (sin to): They made me wait. En pasiva sí lleva to: I was made to wait."},
+{id:"b2-t-18", nivel:"B2", cat:"traduccion", tipo:"texto", q:"Traduce al inglés: «Debe de estar durmiendo.» (él)", respuestas:["He must be sleeping","He must be asleep"], exp:"Deducción presente: must be + -ing → He must be sleeping."},
+{id:"b2-t-19", nivel:"B2", cat:"traduccion", tipo:"texto", q:"Traduce al inglés: «Sigue lloviendo.»", respuestas:["It is still raining","It keeps raining","It keeps on raining"], exp:"'Still + continuo' o 'keep (on) + -ing': It's still raining."},
+{id:"b2-t-20", nivel:"B2", cat:"traduccion", tipo:"texto", q:"Traduce al inglés: «Me gustaría que vinieras.»", respuestas:["I would like you to come","I want you to come"], exp:"'Would like + persona + to + infinitivo': I'd like you to come."}
 ];
 /* ===== FIN BANCO ===== */
 
@@ -366,6 +522,8 @@ var CONTRACCIONES = [
   [/\bi'm\b/g,"i am"],[/\byou're\b/g,"you are"],[/\bwe're\b/g,"we are"],[/\bthey're\b/g,"they are"],
   [/\bhe's\b/g,"he is"],[/\bshe's\b/g,"she is"],[/\bit's\b/g,"it is"],
   [/\bi've\b/g,"i have"],[/\byou've\b/g,"you have"],[/\bwe've\b/g,"we have"],[/\bthey've\b/g,"they have"],
+  [/\bi'd\b/g,"i would"],[/\byou'd\b/g,"you would"],
+  [/\bi'll\b/g,"i will"],[/\byou'll\b/g,"you will"],[/\bhe'll\b/g,"he will"],[/\bshe'll\b/g,"she will"],[/\bwe'll\b/g,"we will"],[/\bthey'll\b/g,"they will"],
   [/\bisn't\b/g,"is not"],[/\baren't\b/g,"are not"],[/\bwasn't\b/g,"was not"],[/\bweren't\b/g,"were not"],
   [/\bdon't\b/g,"do not"],[/\bdoesn't\b/g,"does not"],[/\bdidn't\b/g,"did not"],
   [/\bcan't\b/g,"can not"],[/\bcannot\b/g,"can not"],[/\bwon't\b/g,"will not"],
@@ -380,6 +538,51 @@ function normalizar(s){
   s = s.replace(/[.,;:!?¿¡"()\-—]/g," ");
   s = s.replace(/\s+/g," ").trim();
   return s;
+}
+
+/* =====================  SINCRONIZACIÓN CON GITHUB  ===================== */
+function claveSesion(s){ return s.fecha + "|" + s.aciertos + "|" + s.total + "|" + s.duracionSeg; }
+function fusionar(p, d){
+  /* Fusiona datos remotos (d) en el perfil local (p). Devuelve true si cambió algo.
+     Estrategia monótona: nunca borra, se queda con el registro con más intentos. */
+  var cambio = false;
+  var vistos = {};
+  p.sesiones.forEach(function(s){ vistos[claveSesion(s)] = 1; });
+  (d.sesiones || []).forEach(function(s){
+    if(!vistos[claveSesion(s)]){ p.sesiones.push(s); vistos[claveSesion(s)] = 1; cambio = true; }
+  });
+  p.sesiones.sort(function(a,b){ return a.fecha < b.fecha ? -1 : (a.fecha > b.fecha ? 1 : 0); });
+  Object.keys(d.estadisticas || {}).forEach(function(id){
+    var r = d.estadisticas[id], l = p.estadisticas[id];
+    if(r && typeof r.intentos === "number" && (!l || r.intentos > l.intentos)){
+      p.estadisticas[id] = {intentos:r.intentos, aciertos:r.aciertos||0, ultima:r.ultima||null};
+      cambio = true;
+    }
+  });
+  if((d.ultimaSesion || "") > (p.ultimaSesion || "")){
+    p.ultimaSesion = d.ultimaSesion;
+    if(typeof d.racha === "number") p.racha = d.racha;
+    cambio = true;
+  } else if(d.ultimaSesion === p.ultimaSesion && (d.racha || 0) > p.racha){
+    p.racha = d.racha; cambio = true;
+  }
+  return cambio;
+}
+function sincronizar(u){
+  if(location.protocol === "file:" || typeof fetch !== "function") return;
+  fetch("progresos/" + u + ".json?t=" + Date.now(), {cache:"no-store"})
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(d){
+      if(!d || d.version !== 1) return;
+      if(fusionar(store[u], d)){
+        guardarStore();
+        if(usuario === u && $("scr-panel").classList.contains("activa")){
+          irPanel();
+          $("panel-nube").textContent = "☁ Progreso sincronizado desde GitHub.";
+        }
+      }
+    })
+    .catch(function(){ /* sin conexión: seguimos con lo local */ });
 }
 
 /* =====================  PANTALLAS  ===================== */
@@ -400,13 +603,17 @@ function elegirUsuario(u){
   usuario = u;
   $("cab-usuario").classList.remove("oculto");
   irPanel();
+  sincronizar(u);
 }
 function irPanel(){
   var p = perfil();
+  var hoy = hoyISO();
   $("panel-nombre").textContent = usuario === "jorge" ? "👨 Jorge" : "👧 Marina";
   $("sel-nivel").value = p.nivel;
   $("st-racha").textContent = p.racha;
   $("st-sesiones").textContent = p.sesiones.length;
+  var hoyN = p.sesiones.filter(function(s){ return s.fecha === hoy; }).length;
+  $("st-hoy").textContent = hoyN;
 
   var tot=0, ac=0;
   Object.keys(p.estadisticas).forEach(function(id){
@@ -427,10 +634,10 @@ function irPanel(){
   });
   $("panel-cats").innerHTML = html;
 
-  var hoy = hoyISO();
-  $("panel-aviso").textContent = p.ultimaSesion === hoy
-    ? "✅ Ya has completado la sesión de hoy. Puedes hacer otra si quieres: la racha solo cuenta una vez al día."
-    : "🎯 Todavía no has hecho la sesión de hoy. ¡A por ella!";
+  $("panel-aviso").textContent = hoyN === 0
+    ? "🎯 Todavía no has practicado hoy. ¡A por la primera!"
+    : "✅ Hoy llevas " + hoyN + (hoyN===1?" sesión":" sesiones") + ". Haz todas las que quieras: la racha cuenta una vez al día.";
+  $("panel-nube").textContent = "";
   mostrar("scr-panel");
 }
 function cambiarNivel(n){
@@ -441,16 +648,16 @@ function cambiarNivel(n){
 /* =====================  SELECCIÓN DE PREGUNTAS  ===================== */
 function pesoPregunta(q, stats){
   var s = stats[q.id];
-  if(!s || s.intentos === 0) return 2;             // nunca vista: prioridad alta
+  if(!s || s.intentos === 0) return 2;               // nunca vista: prioridad alta
   var tasaFallo = 1 - (s.aciertos / s.intentos);
   if(tasaFallo === 0 && s.intentos >= 3) return 0.3; // dominada: baja prioridad
-  return 0.8 + 2*tasaFallo;                         // fallada: más prioridad
+  return 0.8 + 2*tasaFallo;                          // fallada: más prioridad
 }
 function construirSesion(nivel, stats){
   var delNivel = BANCO.filter(function(q){ return q.nivel === nivel; });
   var sesion = [];
 
-  // comprensión: elegir el pasaje con más "necesidad" y usar sus 5 preguntas
+  // comprensión: elegir el pasaje con más "necesidad" y usar sus preguntas
   var pasajes = {};
   delNivel.filter(function(q){return q.cat==="comprension";}).forEach(function(q){
     if(!pasajes[q.pasaje]) pasajes[q.pasaje] = [];
@@ -543,8 +750,7 @@ function responderMC(boton, ok){
   var botones = document.querySelectorAll("#q-opciones .opcion");
   for(var i=0;i<botones.length;i++){
     botones[i].disabled = true;
-    var esCorrecta = normalizar(botones[i].textContent) === normalizar(q.opciones[q.correcta]);
-    if(esCorrecta) botones[i].classList.add("correcta");
+    if(normalizar(botones[i].textContent) === normalizar(q.opciones[q.correcta])) botones[i].classList.add("correcta");
   }
   if(!ok) boton.classList.add("incorrecta");
   registrarRespuesta(q, ok);
@@ -605,7 +811,7 @@ function finSesion(){
 
   var pct = Math.round(100*ses.aciertos/total);
   $("fin-emoji").textContent = pct >= 90 ? "🏆" : pct >= 70 ? "🎉" : pct >= 50 ? "💪" : "🌱";
-  $("fin-titulo").textContent = pct >= 90 ? "¡Impresionante!" : pct >= 70 ? "¡Muy bien!" : pct >= 50 ? "¡Buen trabajo, sigue así!" : "Cada sesión cuenta. ¡Mañana más!";
+  $("fin-titulo").textContent = pct >= 90 ? "¡Impresionante!" : pct >= 70 ? "¡Muy bien!" : pct >= 50 ? "¡Buen trabajo, sigue así!" : "Cada sesión cuenta. ¡La próxima irá mejor!";
   var min = Math.floor(dur/60), seg = dur%60;
   $("fin-sub").textContent = ses.aciertos + " de " + total + " (" + pct + "%) · " + min + " min " + seg + " s · 🔥 racha: " + p.racha + (p.racha===1?" día":" días");
 
@@ -622,10 +828,10 @@ function finSesion(){
   mostrar("scr-fin");
 }
 
-/* =====================  EXPORTAR / IMPORTAR  ===================== */
-function exportarProgreso(){
+/* =====================  ENVIAR / EXPORTAR / IMPORTAR  ===================== */
+function datosExport(){
   var p = perfil();
-  var datos = {
+  return {
     version: 1,
     usuario: usuario,
     nivel: p.nivel,
@@ -635,7 +841,32 @@ function exportarProgreso(){
     sesiones: p.sesiones,
     estadisticas: p.estadisticas
   };
-  var blob = new Blob([JSON.stringify(datos, null, 2)], {type:"application/json"});
+}
+function enviarProgreso(){
+  /* Abre una issue de GitHub con el progreso para que Claude lo consolide
+     en progresos/<usuario>.json y actualice el temario. */
+  var datos = datosExport();
+  var json = JSON.stringify(datos);
+  var titulo = "Progreso " + usuario + " " + hoyISO();
+  var body = "Progreso automático de **" + usuario + "**:\n\n```json\n" + json + "\n```\n";
+  var url = "https://github.com/" + REPO + "/issues/new?title=" + encodeURIComponent(titulo) + "&body=" + encodeURIComponent(body);
+  if(url.length < 7500){
+    window.open(url, "_blank");
+    alert("Se abre GitHub con tu progreso ya escrito. Solo pulsa el botón verde «Create».");
+  } else {
+    var copiar = function(ok){
+      window.open("https://github.com/" + REPO + "/issues/new?title=" + encodeURIComponent(titulo), "_blank");
+      alert(ok
+        ? "Tu progreso está copiado en el portapapeles. En la página que se abre, toca el cuadro grande de texto, PEGA y pulsa «Create»."
+        : "No se pudo copiar automáticamente. Usa el botón «Copia de seguridad» y envíale el fichero a Jorge.");
+    };
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText("```json\n" + json + "\n```").then(function(){copiar(true);}, function(){copiar(false);});
+    } else copiar(false);
+  }
+}
+function exportarProgreso(){
+  var blob = new Blob([JSON.stringify(datosExport(), null, 2)], {type:"application/json"});
   var a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = "progreso_" + usuario + ".json";
@@ -655,15 +886,10 @@ function importarProgreso(input){
       if(d.usuario !== usuario && !confirm("Este fichero es de «"+d.usuario+"» pero estás en el perfil de «"+usuario+"». ¿Importar de todas formas?")){
         input.value = ""; return;
       }
-      store[usuario] = {
-        nivel: d.nivel || "B1",
-        racha: d.racha || 0,
-        ultimaSesion: d.ultimaSesion || null,
-        sesiones: Array.isArray(d.sesiones) ? d.sesiones : [],
-        estadisticas: d.estadisticas || {}
-      };
+      fusionar(store[usuario], d);
+      if(d.nivel) store[usuario].nivel = d.nivel;
       guardarStore();
-      alert("Progreso importado correctamente.");
+      alert("Progreso restaurado y fusionado correctamente.");
       irPanel();
     }catch(e){
       alert("No se ha podido leer el fichero. ¿Seguro que es un progreso_*.json exportado por esta app?");
