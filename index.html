@@ -842,11 +842,32 @@ function datosExport(){
     estadisticas: p.estadisticas
   };
 }
+var EMAIL_PROGRESO = "jorge.rollon@gmail.com";
 function enviarProgreso(){
-  /* Abre una issue de GitHub con el progreso para que Claude lo consolide
-     en progresos/<usuario>.json y actualice el temario. */
+  /* Marina (iPad, sin cuenta GitHub): abre Mail con el progreso dirigido a Jorge.
+     Jorge (PC, con sesión GitHub): abre una issue con el progreso para que
+     Claude lo consolide en progresos/<usuario>.json y actualice el temario. */
   var datos = datosExport();
   var json = JSON.stringify(datos);
+  if(usuario === "marina"){
+    var asunto = "Progreso inglés de Marina " + hoyISO();
+    var cuerpo = "Hola papá, aquí va mi progreso de inglés:\n\n" + json + "\n\n(Pásaselo a Claude para actualizar el temario.)";
+    var mUrl = "mailto:" + EMAIL_PROGRESO + "?subject=" + encodeURIComponent(asunto) + "&body=" + encodeURIComponent(cuerpo);
+    if(mUrl.length < 9000){
+      window.location.href = mUrl;
+    } else {
+      var abrirCorto = function(ok){
+        window.location.href = "mailto:" + EMAIL_PROGRESO + "?subject=" + encodeURIComponent(asunto) + "&body=" + encodeURIComponent(ok ? "Progreso (pega aquí lo copiado):\n\n" : "El progreso era demasiado grande; envío la copia de seguridad.");
+        alert(ok
+          ? "Tu progreso está copiado. En el correo que se abre, mantén pulsado el texto, elige PEGAR y envíalo."
+          : "No se pudo copiar automáticamente. Usa «Copia de seguridad» y envíale el fichero a papá.");
+      };
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(json).then(function(){abrirCorto(true);}, function(){abrirCorto(false);});
+      } else abrirCorto(false);
+    }
+    return;
+  }
   var titulo = "Progreso " + usuario + " " + hoyISO();
   var body = "Progreso automático de **" + usuario + "**:\n\n```json\n" + json + "\n```\n";
   var url = "https://github.com/" + REPO + "/issues/new?title=" + encodeURIComponent(titulo) + "&body=" + encodeURIComponent(body);
