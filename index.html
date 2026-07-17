@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Inglés en familia — Jorge &amp; Marina</title>
+<title>Inglés en familia — Jorge, Marina, Tía María &amp; Mery</title>
 <style>
   :root{
     --azul:#4f46e5; --azul-osc:#3730a3; --teal:#0d9488;
@@ -31,6 +31,8 @@
   .avatar{width:56px; height:56px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1.6rem; font-weight:700; color:#fff;}
   .avatar-jorge{background:var(--azul);}
   .avatar-marina{background:#db2777;}
+  .avatar-tiamaria{background:#9333ea;}
+  .avatar-mery{background:#ea580c;}
   .perfil-info h2{font-size:1.15rem;}
   .perfil-info p{color:var(--gris); font-size:.85rem;}
   .badge{display:inline-block; background:#e0e7ff; color:var(--azul-osc); border-radius:999px; padding:2px 10px; font-size:.75rem; font-weight:700;}
@@ -94,6 +96,20 @@
       <div class="perfil-info">
         <h2>Marina <span class="badge" id="badge-marina">B1</span></h2>
         <p id="resumen-marina">Sin sesiones todavía</p>
+      </div>
+    </div>
+    <div class="carta perfil-card" onclick="elegirUsuario('tiamaria')">
+      <div class="avatar avatar-tiamaria">T</div>
+      <div class="perfil-info">
+        <h2>Tía María <span class="badge" id="badge-tiamaria">B1</span></h2>
+        <p id="resumen-tiamaria">Sin sesiones todavía</p>
+      </div>
+    </div>
+    <div class="carta perfil-card" onclick="elegirUsuario('mery')">
+      <div class="avatar avatar-mery">M</div>
+      <div class="perfil-info">
+        <h2>Mery <span class="badge" id="badge-mery">B1</span></h2>
+        <p id="resumen-mery">Sin sesiones todavía</p>
       </div>
     </div>
     <p class="pie">Al entrar en tu perfil, tu progreso guardado en GitHub se carga automáticamente.</p>
@@ -172,7 +188,7 @@
     </div>
   </div>
 
-  <p class="pie">Inglés en familia · v2 · Jorge &amp; Marina · MCER B1/B2</p>
+  <p class="pie">Inglés en familia · v2 · Jorge, Marina, Tía María &amp; Mery · MCER B1/B2</p>
 </div>
 
 <script>
@@ -181,7 +197,7 @@
    FORMATO DE EXPORTACIÓN (v1) — NO ROMPER COMPATIBILIDAD
    {
      version: 1,
-     usuario: "jorge" | "marina",
+     usuario: "jorge" | "marina" | "tiamaria" | "mery",
      nivel: "B1" | "B2",
      exportado: ISO-8601,
      racha: número de días seguidos,
@@ -475,7 +491,14 @@ var BANCO = [
 /* =====================  ALMACENAMIENTO  ===================== */
 var STORE_KEY = "ingles_familia_v1";
 var store = null;
-var usuario = null; // "jorge" | "marina"
+var usuario = null; // clave de USUARIOS
+/* Config de usuarios: envio "github" abre una issue; "correo" comparte el JSON adjunto por email. */
+var USUARIOS = {
+  jorge:    {nombre:"Jorge",     emoji:"👨", envio:"github"},
+  marina:   {nombre:"Marina",    emoji:"👧", envio:"correo"},
+  tiamaria: {nombre:"Tía María", emoji:"👩", envio:"correo"},
+  mery:     {nombre:"Mery",      emoji:"👩", envio:"correo"}
+};
 
 function perfilVacio(){
   return {nivel:"B1", racha:0, ultimaSesion:null, sesiones:[], estadisticas:{}};
@@ -486,8 +509,9 @@ function cargarStore(){
     store = raw ? JSON.parse(raw) : null;
   }catch(e){ store = null; }
   if(!store || typeof store !== "object") store = {};
-  if(!store.jorge) store.jorge = perfilVacio();
-  if(!store.marina) store.marina = perfilVacio();
+  Object.keys(USUARIOS).forEach(function(u){
+    if(!store[u]) store[u] = perfilVacio();
+  });
 }
 function guardarStore(){
   try{ localStorage.setItem(STORE_KEY, JSON.stringify(store)); }catch(e){}
@@ -587,7 +611,7 @@ function sincronizar(u){
 
 /* =====================  PANTALLAS  ===================== */
 function renderPerfiles(){
-  ["jorge","marina"].forEach(function(u){
+  Object.keys(USUARIOS).forEach(function(u){
     var p = store[u];
     $("badge-"+u).textContent = p.nivel;
     var n = p.sesiones.length;
@@ -608,7 +632,7 @@ function elegirUsuario(u){
 function irPanel(){
   var p = perfil();
   var hoy = hoyISO();
-  $("panel-nombre").textContent = usuario === "jorge" ? "👨 Jorge" : "👧 Marina";
+  $("panel-nombre").textContent = USUARIOS[usuario].emoji + " " + USUARIOS[usuario].nombre;
   $("sel-nivel").value = p.nivel;
   $("st-racha").textContent = p.racha;
   $("st-sesiones").textContent = p.sesiones.length;
@@ -844,28 +868,33 @@ function datosExport(){
 }
 var EMAIL_PROGRESO = "jorge.rollon@gmail.com";
 function enviarProgreso(){
-  /* Marina (iPad, sin cuenta GitHub): abre Mail con el progreso dirigido a Jorge.
+  /* Usuarias con envio "correo" (sin cuenta GitHub): comparten el progreso como
+     fichero adjunto por email dirigido a Jorge.
      Jorge (PC, con sesión GitHub): abre una issue con el progreso para que
      Claude lo consolide en progresos/<usuario>.json y actualice el temario. */
   var datos = datosExport();
   var json = JSON.stringify(datos);
-  if(usuario === "marina"){
-    var asunto = "Progreso inglés de Marina " + hoyISO();
-    var cuerpo = "Hola papá, aquí va mi progreso de inglés:\n\n" + json + "\n\n(Pásaselo a Claude para actualizar el temario.)";
-    var mUrl = "mailto:" + EMAIL_PROGRESO + "?subject=" + encodeURIComponent(asunto) + "&body=" + encodeURIComponent(cuerpo);
-    if(mUrl.length < 9000){
-      window.location.href = mUrl;
-    } else {
-      var abrirCorto = function(ok){
-        window.location.href = "mailto:" + EMAIL_PROGRESO + "?subject=" + encodeURIComponent(asunto) + "&body=" + encodeURIComponent(ok ? "Progreso (pega aquí lo copiado):\n\n" : "El progreso era demasiado grande; envío la copia de seguridad.");
-        alert(ok
-          ? "Tu progreso está copiado. En el correo que se abre, mantén pulsado el texto, elige PEGAR y envíalo."
-          : "No se pudo copiar automáticamente. Usa «Copia de seguridad» y envíale el fichero a papá.");
-      };
-      if(navigator.clipboard && navigator.clipboard.writeText){
-        navigator.clipboard.writeText(json).then(function(){abrirCorto(true);}, function(){abrirCorto(false);});
-      } else abrirCorto(false);
+  if(USUARIOS[usuario].envio === "correo"){
+    var nombre = USUARIOS[usuario].nombre;
+    var asunto = "Progreso inglés de " + nombre + " " + hoyISO();
+    var nombreFich = "progreso_" + usuario + ".json";
+    var texto = "Hola Jorge, te adjunto mi progreso de inglés (" + nombre + ").\n(Pásaselo a Claude para actualizar el temario.)";
+    /* Preferido (móvil/tablet): hoja de compartir con el JSON como fichero adjunto.
+       Se elige Mail/Gmail y el correo sale con el .json adjunto. */
+    if(navigator.canShare && window.File){
+      try{
+        var fich = new File([JSON.stringify(datos, null, 2)], nombreFich, {type:"application/json"});
+        if(navigator.canShare({files:[fich]})){
+          navigator.share({files:[fich], title: asunto, text: texto + "\nPara: " + EMAIL_PROGRESO}).catch(function(){});
+          return;
+        }
+      }catch(e){}
     }
+    /* Fallback: descarga el fichero y abre Mail para adjuntarlo a mano
+       (mailto no permite adjuntos automáticos). */
+    exportarProgreso();
+    window.location.href = "mailto:" + EMAIL_PROGRESO + "?subject=" + encodeURIComponent(asunto) + "&body=" + encodeURIComponent(texto);
+    alert("Se ha descargado «" + nombreFich + "». En el correo que se abre, adjúntalo desde Archivos/Descargas y envíalo.");
     return;
   }
   var titulo = "Progreso " + usuario + " " + hoyISO();
